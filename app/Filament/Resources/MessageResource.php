@@ -28,12 +28,33 @@ class MessageResource extends Resource
                     ->required(),
                 Forms\Components\Select::make('author_id')
                     ->relationship('author', 'name')
-                    ->required(),
+                    ->visible(fn (Forms\Get $get) => $get('sender_type') === 'ai_author' || !$get('sender_type')),
+                Forms\Components\Select::make('user_id')
+                    ->relationship('user', 'name')
+                    ->visible(fn (Forms\Get $get) => $get('sender_type') === 'human_user'),
+                Forms\Components\Select::make('sender_type')
+                    ->options([
+                        'ai_author' => 'AI Author',
+                        'human_user' => 'Human User',
+                    ])
+                    ->required()
+                    ->default('ai_author')
+                    ->live(),
                 Forms\Components\Textarea::make('content')
                     ->required()
                     ->columnSpanFull(),
-                Forms\Components\TextInput::make('type')
-                    ->required(),
+                Forms\Components\Select::make('type')
+                    ->options([
+                        'message' => 'Message',
+                        'story_contribution' => 'Story Contribution',
+                        'chapter_draft' => 'Chapter Draft',
+                        'revision_suggestion' => 'Revision Suggestion',
+                        'human_input' => 'Human Input',
+                        'human_pause' => 'Human Pause',
+                        'human_resume' => 'Human Resume',
+                    ])
+                    ->required()
+                    ->default('message'),
                 Forms\Components\Textarea::make('metadata')
                     ->columnSpanFull(),
                 Forms\Components\Textarea::make('context_summary')
@@ -56,11 +77,26 @@ class MessageResource extends Resource
                 Tables\Columns\TextColumn::make('conversation.title')
                     ->numeric()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('author.name')
-                    ->numeric()
+                Tables\Columns\TextColumn::make('sender')
+                    ->label('Sender')
+                    ->getStateUsing(function ($record) {
+                        if ($record->sender_type === 'human_user') {
+                            return '👤 ' . ($record->user->name ?? 'Unknown User');
+                        } else {
+                            return '🤖 ' . ($record->author->name ?? 'Unknown AI');
+                        }
+                    })
                     ->sortable(),
                 Tables\Columns\TextColumn::make('type')
-                    ->searchable(),
+                    ->searchable()
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'human_pause' => 'warning',
+                        'human_resume' => 'success',
+                        'human_input' => 'primary',
+                        'story_contribution' => 'info',
+                        default => 'gray',
+                    }),
                 Tables\Columns\TextColumn::make('word_count')
                     ->numeric()
                     ->sortable(),

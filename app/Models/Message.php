@@ -10,6 +10,8 @@ class Message extends Model
     protected $fillable = [
         'conversation_id',
         'author_id',
+        'user_id',
+        'sender_type',
         'content',
         'type',
         'metadata',
@@ -35,6 +37,11 @@ class Message extends Model
         return $this->belongsTo(Author::class);
     }
 
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
     public function updateWordCount(): void
     {
         $wordCount = str_word_count(strip_tags($this->content));
@@ -51,6 +58,26 @@ class Message extends Model
     public function isStoryContribution(): bool
     {
         return in_array($this->type, ['story_contribution', 'chapter_draft']);
+    }
+
+    public function isHumanMessage(): bool
+    {
+        return $this->sender_type === 'human_user';
+    }
+
+    public function isAiMessage(): bool
+    {
+        return $this->sender_type === 'ai_author';
+    }
+
+    public function getSenderName(): string
+    {
+        if ($this->isHumanMessage() && $this->user) {
+            return $this->user->name;
+        } elseif ($this->isAiMessage() && $this->author) {
+            return $this->author->name;
+        }
+        return 'Unknown Sender';
     }
 
     public function scopeUnprocessed($query)

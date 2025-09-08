@@ -34,6 +34,9 @@ class ConversationResource extends Resource
                     ->columnSpanFull(),
                 Forms\Components\TextInput::make('status')
                     ->required(),
+                Forms\Components\Toggle::make('allows_human_interaction')
+                    ->label('Allow Human Interaction')
+                    ->columnSpanFull(),
                 Forms\Components\TextInput::make('message_count')
                     ->required()
                     ->numeric()
@@ -56,7 +59,18 @@ class ConversationResource extends Resource
                 Tables\Columns\TextColumn::make('title')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('status')
-                    ->searchable(),
+                    ->searchable()
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'active' => 'success',
+                        'paused' => 'warning',
+                        'completed' => 'info',
+                        'archived' => 'gray',
+                        default => 'gray',
+                    }),
+                Tables\Columns\IconColumn::make('allows_human_interaction')
+                    ->label('Human')
+                    ->boolean(),
                 Tables\Columns\TextColumn::make('message_count')
                     ->numeric()
                     ->sortable(),
@@ -76,6 +90,13 @@ class ConversationResource extends Resource
                 //
             ])
             ->actions([
+                Tables\Actions\Action::make('open_conversation')
+                    ->label('Open')
+                    ->icon('heroicon-m-eye')
+                    ->color('primary')
+                    ->url(fn (Conversation $record): string => route('conversations.show', $record))
+                    ->openUrlInNewTab(),
+                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
             ])
             ->bulkActions([
@@ -97,6 +118,7 @@ class ConversationResource extends Resource
         return [
             'index' => Pages\ListConversations::route('/'),
             'create' => Pages\CreateConversation::route('/create'),
+            'view' => Pages\ViewConversation::route('/{record}'),
             'edit' => Pages\EditConversation::route('/{record}/edit'),
         ];
     }
