@@ -66,4 +66,9 @@ class User extends Authenticatable
     {
         return $this->books()->where('status', 'completed');
     }
+
+    public function messages(): HasMany
+    {
+        return $this->hasMany(Message::class);
+    }
 }

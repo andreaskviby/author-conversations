@@ -14,16 +14,23 @@ class Conversation extends Model
         'topic',
         'context',
         'status',
+        'allows_human_interaction',
         'message_count',
         'last_message_at',
         'participants',
+        'human_participants',
+        'paused_at',
+        'paused_by_user_id',
         'conversation_settings',
     ];
 
     protected $casts = [
         'participants' => 'array',
+        'human_participants' => 'array',
         'conversation_settings' => 'array',
+        'allows_human_interaction' => 'boolean',
         'last_message_at' => 'datetime',
+        'paused_at' => 'datetime',
     ];
 
     public function book(): BelongsTo
@@ -69,5 +76,65 @@ class Conversation extends Model
     public function scopeForBook($query, $bookId)
     {
         return $query->where('book_id', $bookId);
+    }
+
+    public function pausedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'paused_by_user_id');
+    }
+
+    public function getHumanParticipants()
+    {
+        if (!$this->human_participants) {
+            return collect();
+        }
+
+        return User::whereIn('id', $this->human_participants)->get();
+    }
+
+    public function isPaused(): bool
+    {
+        return $this->status === 'paused' && $this->paused_at !== null;
+    }
+
+    public function pauseForHuman(User $user): void
+    {
+        $this->update([
+            'status' => 'paused',
+            'paused_at' => now(),
+            'paused_by_user_id' => $user->id,
+        ]);
+    }
+
+    public function resume(): void
+    {
+        $this->update([
+            'status' => 'active',
+            'paused_at' => null,
+            'paused_by_user_id' => null,
+        ]);
+    }
+
+    public function addHumanParticipant(User $user): void
+    {
+        $humanParticipants = $this->human_participants ?? [];
+        if (!in_array($user->id, $humanParticipants)) {
+            $humanParticipants[] = $user->id;
+            $this->update([
+                'human_participants' => $humanParticipants,
+                'allows_human_interaction' => true,
+            ]);
+        }
+    }
+
+    public function removeHumanParticipant(User $user): void
+    {
+        $humanParticipants = $this->human_participants ?? [];
+        $humanParticipants = array_values(array_filter($humanParticipants, fn($id) => $id !== $user->id));
+        
+        $this->update([
+            'human_participants' => $humanParticipants,
+            'allows_human_interaction' => count($humanParticipants) > 0,
+        ]);
     }
 }
